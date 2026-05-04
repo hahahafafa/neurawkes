@@ -420,6 +420,11 @@ class ControlNeuralHawkesAdaptiveBaseCTSM_time(object):
                 self.seq_mask,
                 self.time_diffs
             )
+            self.hawkes_ctsm.compute_prediction_probabilities(
+                self.seq_type_event,
+                self.seq_time_values,
+                self.time_diffs
+            )
         #
         #self.hawkes_ctsm.compute_prediction(
         #    self.seq_type_event,
@@ -559,6 +564,20 @@ class ControlNeuralHawkesAdaptiveBaseCTSM_time(object):
                     self.hawkes_ctsm.num_of_events
                     #self.hawkes_ctsm.abs_grad_params
                     #
+                ],
+                on_unused_input='ignore'
+            )
+            print "compiling prediction export function ... "
+            self.model_predict = theano.function(
+                inputs = [
+                    self.seq_type_event,
+                    self.seq_time_values,
+                    self.time_diffs
+                ],
+                outputs = [
+                    self.hawkes_ctsm.prob_over_prefix_over_type,
+                    self.hawkes_ctsm.time_prediction_over_prefix,
+                    self.hawkes_ctsm.type_prediction_over_prefix
                 ],
                 on_unused_input='ignore'
             )

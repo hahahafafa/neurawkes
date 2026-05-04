@@ -6263,6 +6263,8 @@ class NeuralHawkesAdaptiveBaseCTSM_time_scale(object):
             ],
             non_sequences = time_diffs
         )
+        self.prob_over_seq_over_type = prob_over_seq_over_type
+        self.time_prediction = time_prediction
         #
         target_type = seq_type_event[1:, :]
         target_time = seq_time_values[1:, :]
@@ -6300,6 +6302,7 @@ class NeuralHawkesAdaptiveBaseCTSM_time_scale(object):
         type_prediction = tensor.argmax(
             prob_over_seq_over_type, axis = 2
         )
+        self.type_prediction = type_prediction
         diff_type = tensor.abs_(
             target_type - type_prediction
         ) * seq_mask
@@ -6323,6 +6326,59 @@ class NeuralHawkesAdaptiveBaseCTSM_time_scale(object):
             )
         #
         #
+    #
+    #
+    def compute_prediction_probabilities(
+        self,
+        seq_type_event,
+        seq_time_values,
+        time_diffs
+    ):
+        print "computing prediction probabilities ... "
+        seq_emb_event = self.Emb_event[seq_type_event, :]
+        seq_time_rep = tensor.nnet.relu(
+            seq_time_values[:,:,None] - self.Threshold_time[None,None,:]
+        )
+        seq_time_rep = tensor.concatenate(
+            [seq_time_rep, seq_time_values[:,:,None]],
+            axis=2
+        )
+        seq_emb_time = tensor.tensordot(
+            seq_time_rep, self.Emb_time, (2,0)
+        )
+        initial_hidden_mat = tensor.outer(
+            self.expand, self.h_0
+        )
+        initial_cell_mat = tensor.outer(
+            self.expand, self.c_0
+        )
+        [seq_hidden, seq_cell], _ = theano.scan(
+            fn = self.rnn_unit,
+            sequences = [
+                dict(input=seq_emb_event, taps=[0]),
+                dict(input=seq_emb_time, taps=[0])
+            ],
+            outputs_info = [
+                dict(initial=initial_hidden_mat, taps=[-1]),
+                dict(initial=initial_cell_mat, taps=[-1])
+            ],
+            non_sequences = None
+        )
+        [prob_over_prefix_over_type, time_prediction_over_prefix], _ = theano.scan(
+            fn = self.predict_each_step,
+            sequences = dict(
+                input=seq_hidden, taps=[0]
+            ),
+            outputs_info = [
+                None, None
+            ],
+            non_sequences = time_diffs
+        )
+        self.prob_over_prefix_over_type = prob_over_prefix_over_type
+        self.time_prediction_over_prefix = time_prediction_over_prefix
+        self.type_prediction_over_prefix = tensor.argmax(
+            prob_over_prefix_over_type, axis=2
+        )
     #
     #
     #
